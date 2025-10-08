@@ -1,7 +1,6 @@
 # BetterGI日志悬浮窗配置文件
 # =============================================
 # 基本设置段 - 程序运行必需的核心参数
-[基本设置段]
 # =============================================
 
 # 日志文件目录路径（必须设置）
@@ -26,7 +25,6 @@ dynamic_height=true
 
 # =============================================
 # 主样式段 - 用户自定义设置
-[主样式段]
 # =============================================
 # 窗口透明度 (0.1-1.0，1.0为完全不透明)
 window_alpha=0.7
@@ -75,52 +73,51 @@ auto_wrap=true
 
 # =============================================
 # 第二样式配置段 - 使用Alt+K切换到此样式
-[第二样式配置段]
 # =============================================
 # 第二样式窗口透明度
-window_alpha=0.7
+style2_window_alpha=0.7
 
 # 第二样式窗口背景颜色
-bg_color=#000000
+style2_bg_color=#000000
 
 # 第二样式正常状态文字颜色
-normal_color=#FFFFFF
+style2_normal_color=#FFFFFF
 
 # 第二样式超时警告文字颜色
-stale_color=#FFFFFF
+style2_stale_color=#FFFFFF
 
 # 第二样式高频警告文字颜色
-high_freq_color=#FFFFFF
+style2_high_freq_color=#FFFFFF
 
 # 第二样式状态行标题颜色
-status_header_color=#00FF00
+style2_status_header_color=#00FF00
 
 # 第二样式任务行标题颜色
-task_header_color=#00FFFF
+style2_task_header_color=#00FFFF
 
 # 第二样式字体名称
-font_name=Consolas
+style2_font_name=Consolas
 
 # 第二样式字体大小
-font_size=9
+style2_font_size=9
 
 # 第二样式字体粗细
-font_weight=bold
+style2_font_weight=bold
 
 # 第二样式窗口最大宽度
-max_width=460
+style2_max_width=460
 
 # 第二样式窗口最大高度
-max_height=220
+style2_max_height=220
 
 # 第二样式日志记录显示行数
-display_lines=12
+style2_display_lines=12
 
 # 第二样式窗口刷新间隔
-refresh_interval=500
+style2_refresh_interval=500
 
-# 是否啟用自動換行
-auto_wrap=true
+# 第二样式是否啟用自動換行
+style2_auto_wrap=true
 
 # =============================================
 [程序自动管理配置段]
@@ -137,7 +134,7 @@ click_through=false
 
 # 第二样式启用状态 (true-开启, false-关闭)
 # 程序根据Alt+K快捷键自动更新
-author_style=false
+author_style2=false
 
 # 窗口记忆位置X坐标
 # 程序自动保存窗口关闭时的位置

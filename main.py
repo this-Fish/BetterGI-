@@ -74,7 +74,7 @@ class ConfigLoader:
             "auto_wrap": False,         # 是否启用自动换行 - 主样式默认
             "transparent_mode": False, # 透明背景模式默认状态
             "click_through": False,   # 不可选中模式默认状态
-            "author_style": False,    # 仿BGI日志窗口样式默认状态
+            "author_style2": False,   # 仿BGI日志窗口样式默认状态
             "window_x": None,         # 窗口X坐标
             "window_y": None,          # 窗口Y坐标
             "dynamic_height": False   # 动态调整窗口高度
@@ -108,197 +108,80 @@ class ConfigLoader:
         self.initial_log_filename_prefix = "better-genshin-impact"
         self.initial_log_path_configured = False
         
-        # 分别加载各个配置段
-        self.load_basic_settings()        # 加载基本设置段
-        self.load_main_style_section()    # 加载主样式段
-        self.load_second_style_config()   # 加载第二样式配置段
-        self.load_auto_managed_section()  # 加载程序自动管理配置段
-
+        # 加载所有配置
+        self.load_all_settings()
+        
         # 保存初始的日志路径配置
         self.initial_log_path = self.config.get("log_path", "")
         self.initial_log_filename_prefix = self.config.get("log_filename_prefix", "better-genshin-impact")
         self.initial_log_path_configured = self.log_path_configured
         
         # 如果配置中启用了第二样式，则应用
-        if self.config.get("author_style", False):
+        if self.config.get("author_style2", False):
             self.apply_second_style()
 
-    def load_basic_settings(self):
-        """加载[基本设置段]配置"""
+    def load_all_settings(self):
+        """加载所有配置 - 直接根据配置项名称读取，不依赖段落标记"""
         if not self.config_file.exists():
-            logging.warning(f"配置文件 {self.config_file} 不存在，使用默认基本设置")
+            logging.warning(f"配置文件 {self.config_file} 不存在，使用默认配置")
             return
         
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
-                in_basic_section = False
-                
                 for line_num, line in enumerate(f, 1):
                     line = line.strip()
                     
-                    # 检测基本设置段开始
-                    if line == "[基本设置段]":
-                        in_basic_section = True
-                        continue
-                    # 检测配置段结束
-                    elif line.startswith("[") and line.endswith("]"):
-                        in_basic_section = False
+                    # 跳过注释行和空行
+                    if not line or line.startswith('#'):
                         continue
                     
-                    # 如果在基本设置段中，解析配置
-                    if in_basic_section and '=' in line:
+                    # 解析配置行
+                    if '=' in line:
                         key, value = line.split('=', 1)
                         key = key.strip()
                         value = value.strip()
                         
-                        # 处理基本设置段的特定配置项
-                        if key == "log_path":
-                            self._handle_log_path_config(value)
-                        elif key in ["log_filename_prefix", "initial_x", "initial_y", "skip_debug_log", "dynamic_height", "auto_wrap"]:
+                        # 处理第二样式配置（以style2_开头的配置项）
+                        if key.startswith('style2_'):
+                            self._process_second_style_config(key, value, line_num)
+                        else:
+                            # 处理普通配置
                             self._process_config_value(key, value, line_num)
             
-            logging.info("基本设置段加载成功")
+            logging.info("所有配置加载成功")
             
         except Exception as e:
-            logging.error(f"基本设置段文件读取失败: {str(e)}")
+            logging.error(f"配置文件读取失败: {str(e)}")
 
-    def load_main_style_section(self):
-        """加载[主样式段]配置"""
-        if not self.config_file.exists():
-            logging.warning(f"配置文件 {self.config_file} 不存在，使用默认主样式配置")
-            return
+    def _process_second_style_config(self, key, value, line_num):
+        """处理第二样式配置"""
+        # 移除style2_前缀
+        clean_key = key[7:]  # 移除"style2_"前缀
         
-        try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                in_main_section = False
-                
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    
-                    # 检测主样式段开始
-                    if line == "[主样式段]":
-                        in_main_section = True
-                        continue
-                    # 检测配置段结束
-                    elif line.startswith("[") and line.endswith("]"):
-                        in_main_section = False
-                        continue
-                    
-                    # 如果在主样式段中，解析配置
-                    if in_main_section and '=' in line:
-                        key, value = line.split('=', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        
-                        # 处理主样式段的配置项
-                        if key in self.config:
-                            self._process_config_value(key, value, line_num)
-            
-            logging.info("主样式段加载成功")
-            
-        except Exception as e:
-            logging.error(f"主样式段文件读取失败: {str(e)}")
-
-    def load_second_style_config(self):
-        """从配置文件加载[第二样式配置段]"""
-        if not self.config_file.exists():
-            logging.warning(f"配置文件 {self.config_file} 不存在，使用默认第二样式配置")
-            return
-        
-        try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                in_second_style_section = False
-                
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    
-                    # 检测第二样式配置段开始
-                    if line == "[第二样式配置段]":
-                        in_second_style_section = True
-                        continue
-                    # 检测配置段结束
-                    elif line.startswith("[") and line.endswith("]"):
-                        in_second_style_section = False
-                        continue
-                    
-                    # 如果在第二样式配置段中，解析配置
-                    if in_second_style_section and '=' in line:
-                        key, value = line.split('=', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        
-                        # 只处理第二样式配置中存在的键
-                        if key in self.second_style_config:
-                            try:
-                                # 根据数据类型转换
-                                if key in ["window_alpha"]:
-                                    self.second_style_config[key] = float(value)
-                                elif key in ["font_size", "max_width", "max_height", 
-                                           "display_lines", "refresh_interval"]:
-                                    self.second_style_config[key] = int(value)
-                                elif key in ["auto_wrap"]:  # 布尔值配置项 - 新增 auto_wrap
-                                    self.second_style_config[key] = value.lower() in ('true', '1', 'yes', 'on')
-                                else:
-                                    self.second_style_config[key] = value
-                            except (ValueError, TypeError) as e:
-                                logging.warning(f"第二样式配置第{line_num}行: {key} 配置值无效: {value} - {str(e)}")
-            
-            logging.info("第二样式配置段加载成功")
-            
-        except Exception as e:
-            logging.error(f"第二样式配置文件读取失败: {str(e)}")
-
-    def load_auto_managed_section(self):
-        """加载[程序自动管理配置段]"""
-        if not self.config_file.exists():
-            logging.warning(f"配置文件 {self.config_file} 不存在，使用默认自动管理配置")
-            return
-        
-        try:
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                in_auto_section = False
-                
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    
-                    # 检测程序自动管理配置段开始
-                    if line == "[程序自动管理配置段]":
-                        in_auto_section = True
-                        continue
-                    # 检测配置段结束
-                    elif line.startswith("[") and line.endswith("]"):
-                        in_auto_section = False
-                        continue
-                    
-                    # 如果在程序自动管理配置段中，解析配置
-                    if in_auto_section and '=' in line:
-                        key, value = line.split('=', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        
-                        # 只处理自动管理配置段中的特定配置项
-                        if key in ["transparent_mode", "click_through", "author_style", "window_x", "window_y"]:
-                            self._process_config_value(key, value, line_num)
-            
-            logging.info("程序自动管理配置段加载成功")
-            
-        except Exception as e:
-            logging.error(f"程序自动管理配置段文件读取失败: {str(e)}")
-
-    def _handle_log_path_config(self, value):
-        """处理log_path配置"""
-        if value:  # 只有非空值才视为有效配置
-            self.log_path_configured = True
-            self.config["log_path"] = value
-            self.user_config["log_path"] = value
-            logging.info(f"找到log_path配置: {value}")
-        else:
-            self.log_path_configured = False
-            logging.warning("log_path配置为空")
+        # 只处理第二样式配置中存在的键
+        if clean_key in self.second_style_config:
+            try:
+                # 根据数据类型转换
+                if clean_key in ["window_alpha"]:
+                    self.second_style_config[clean_key] = float(value)
+                elif clean_key in ["font_size", "max_width", "max_height", 
+                                 "display_lines", "refresh_interval"]:
+                    self.second_style_config[clean_key] = int(value)
+                elif clean_key in ["auto_wrap"]:
+                    self.second_style_config[clean_key] = value.lower() in ('true', '1', 'yes', 'on')
+                else:
+                    self.second_style_config[clean_key] = value
+            except (ValueError, TypeError) as e:
+                logging.warning(f"第二样式配置第{line_num}行: {clean_key} 配置值无效: {value} - {str(e)}")
 
     def _process_config_value(self, key, value, line_num):
         """处理配置值转换"""
         try:
+            # 特殊处理log_path
+            if key == "log_path":
+                self._handle_log_path_config(value)
+                return
+
             if key in ["window_x", "window_y"]:
                 # 简化处理：空字符串或无效值都设为 None
                 if value and value.strip():
@@ -317,7 +200,7 @@ class ConfigLoader:
                 self.config[key] = int(value)
                 self.user_config[key] = int(value)
                 
-            elif key in ["transparent_mode", "click_through", "author_style", "skip_debug_log", "dynamic_height", "auto_wrap"]:
+            elif key in ["transparent_mode", "click_through", "author_style2", "skip_debug_log", "dynamic_height", "auto_wrap"]:
                 self.config[key] = value.lower() in ('true', '1', 'yes', 'on')
                 self.user_config[key] = value.lower() in ('true', '1', 'yes', 'on')
                 
@@ -331,7 +214,18 @@ class ConfigLoader:
             if key in self.default_config:
                 self.config[key] = self.default_config[key]
                 self.user_config[key] = self.default_config[key]
-    
+
+    def _handle_log_path_config(self, value):
+        """处理log_path配置"""
+        if value:  # 只有非空值才视为有效配置
+            self.log_path_configured = True
+            self.config["log_path"] = value
+            self.user_config["log_path"] = value
+            logging.info(f"找到log_path配置: {value}")
+        else:
+            self.log_path_configured = False
+            logging.warning("log_path配置为空")
+
     def apply_second_style(self):
         """应用第二样式"""
         # 保存当前的log_filename_prefix、窗口位置和skip_debug_log
@@ -351,9 +245,11 @@ class ConfigLoader:
         self.config["skip_debug_log"] = current_skip_debug_log
         
         # 设置第二样式状态
-        self.config["author_style"] = True
+        self.config["author_style2"] = True
         
         logging.info("应用第二样式")
+        
+        
     
     def restore_user_style(self):
         """恢复用户自定义样式"""
@@ -373,7 +269,7 @@ class ConfigLoader:
         self.config["transparent_mode"] = current_transparent_mode
         self.config["click_through"] = current_click_through
         self.config["skip_debug_log"] = current_skip_debug_log
-        self.config["author_style"] = False  # 明确设置为False
+        self.config["author_style2"] = False  # 明确设置为False
         
         # 同时更新user_config中的这些项，确保一致性
         self.user_config["window_x"] = current_window_x
@@ -381,11 +277,11 @@ class ConfigLoader:
         self.user_config["transparent_mode"] = current_transparent_mode
         self.user_config["click_through"] = current_click_through
         self.user_config["skip_debug_log"] = current_skip_debug_log
-        self.user_config["author_style"] = False
+        self.user_config["author_style2"] = False
         
         logging.info("恢复用户自定义样式 - 已应用用户config.txt配置")
 
-    def save_window_state(self, x, y, transparent_mode=False, click_through=False, author_style=False):
+    def save_window_state(self, x, y, transparent_mode=False, click_through=False, author_style2=False):
         """保存窗口位置和状态到config.txt"""
         try:
             # 读取现有配置文件内容
@@ -400,7 +296,7 @@ class ConfigLoader:
                 "window_y": str(y),
                 "transparent_mode": str(transparent_mode).lower(),
                 "click_through": str(click_through).lower(),
-                "author_style": str(author_style).lower()
+                "author_style2": str(author_style2).lower()
             }
             
             # 构建新的配置内容
@@ -452,9 +348,9 @@ class ConfigLoader:
             self.config["window_y"] = y
             self.config["transparent_mode"] = transparent_mode
             self.config["click_through"] = click_through
-            self.config["author_style"] = author_style
+            self.config["author_style2"] = author_style2
             
-            logging.info(f"保存窗口位置到config.txt: ({x}, {y}), 透明模式: {transparent_mode}, 不可选中模式: {click_through}, 仿BGI日志窗口样式: {author_style}")
+            logging.info(f"保存窗口位置到config.txt: ({x}, {y}), 透明模式: {transparent_mode}, 不可选中模式: {click_through}, 仿BGI日志窗口样式: {author_style2}")
             
         except Exception as e:
             logging.error(f"保存窗口位置到config.txt失败: {str(e)}")
@@ -983,9 +879,16 @@ class SmartLogReader:
             for task_type, pattern in self.task_patterns.items():
                 if match := pattern.search(line):
                     task_name = match.group(1).strip()
-                    # 特殊处理JS脚本的文件名提取
-                    if task_type == "JS脚本" and '/' in task_name:
-                        task_name = task_name.split('/')[-1]
+                    
+                    # 特殊处理：提取纯文件名（不含路径和扩展名）
+                    if '/' in task_name or '\\' in task_name:
+                        # 提取文件名（含扩展名）
+                        base_name = os.path.basename(task_name)
+                        # 移除扩展名，获取纯文件名
+                        task_name = os.path.splitext(base_name)[0]
+                    elif '.' in task_name:
+                        # 如果只有文件名但包含扩展名，也移除扩展名
+                        task_name = os.path.splitext(task_name)[0]
                     
                     latest_task = f"{task_type}: {task_name}"
                     break  # 一行通常只匹配一个任务类型
@@ -1194,7 +1097,7 @@ class FloatingLogViewer(tk.Tk):
         # 功能状态
         self.transparent_mode = config.get("transparent_mode", False)  # 从配置读取透明模式状态
         self.click_through = config.get("click_through", False)  # 从配置读取不可选中模式状态
-        self.author_style_active = config.get("author_style", False)  # 从配置读取仿BGI日志窗口样式状态
+        self.author_style2_active = config.get("author_style2", False)  # 从配置读取仿BGI日志窗口样式状态
         
         # 窗口配置 - 使用保存的位置，如果 window_x/window_y 为 None 则使用 initial_x/initial_y
         self.preset_x = config.get("initial_x", 0)
@@ -1516,12 +1419,10 @@ class FloatingLogViewer(tk.Tk):
 
     def _on_second_style_toggle_shortcut(self, event=None):
         """Alt+K 快捷键处理函数 - 切换第二样式"""
-        self.author_style_active = not self.author_style_active
-        # 先更新配置中的值
-        self.config.config["author_style"] = self.author_style_active
-        self.config.user_config["author_style"] = self.author_style_active
+        # 切换状态
+        self.author_style2_active = not self.author_style2_active
         
-        if self.author_style_active:
+        if self.author_style2_active:
             # 应用第二样式
             self.config.apply_second_style()
             logging.info("应用第二样式")
@@ -1530,8 +1431,28 @@ class FloatingLogViewer(tk.Tk):
             self.config.restore_user_style()
             logging.info("恢复用户自定义样式")
         
+        # 确保配置状态同步
+        self.config.config["author_style2"] = self.author_style2_active
+        self.config.user_config["author_style2"] = self.author_style2_active
+        
         # 重新设置窗口和UI
         self._refresh_ui_after_style_change()
+        
+        # 强制立即刷新显示，不等待下一次自动刷新
+        self._force_immediate_display_update()
+
+    def _force_immediate_display_update(self):
+        """强制立即更新显示，不依赖日志内容变化"""
+        # 清除之前的内容缓存，确保强制更新
+        self._prev_content = []
+        self.last_change_time = datetime.now()
+        
+        # 强制调用更新显示
+        self._update_display()
+        
+        # 确保窗口完全刷新
+        self.update_idletasks()
+        self.update()
 
     def clear_font_cache(self):
         """清理字体缓存"""
@@ -1539,7 +1460,7 @@ class FloatingLogViewer(tk.Tk):
             self._font_cache = None
             self._last_font_config = None
             logging.debug("字体缓存已清理")
-        
+
     def _refresh_ui_after_style_change(self):
         """样式变更后刷新UI"""
         # 从配置中重新读取所有设置
@@ -1556,9 +1477,17 @@ class FloatingLogViewer(tk.Tk):
         # 清理字体缓存
         self.clear_font_cache()
         
+        # 删除所有文本标签，确保样式完全重置
+        self.text.tag_delete("config_header")
+        self.text.tag_delete("task_header")
+        self.text.tag_delete("high_freq_warning")
+        
         # 更新窗口视觉设置
         bg_color = self.config.get("bg_color", "#000000")
 
+        # 先清除所有特殊属性
+        self.attributes('-transparentcolor', '')
+        
         if self.transparent_mode:
             # 透明模式下使用 transparentcolor
             self.configure(bg=bg_color)
@@ -1567,13 +1496,19 @@ class FloatingLogViewer(tk.Tk):
         else:
             # 正常模式
             self.configure(bg=bg_color)
-            self.attributes('-transparentcolor', '')
-            self.attributes('-alpha', self.config.get("window_alpha", 0.7))
+            window_alpha = self.config.get("window_alpha", 0.7)
+            self.attributes('-alpha', window_alpha)
         
         # 更新文本组件
         font_name = self.config.get("font_name", "Consolas")
         font_size = self.config.get("font_size", 11)
         font_weight = self.config.get("font_weight", "bold")
+        
+        # 验证字体是否存在
+        available_fonts = tkfont.families()
+        if font_name not in available_fonts:
+            logging.warning(f"字体 '{font_name}' 不可用，使用默认字体")
+            font_name = "Consolas"
         
         font_config = (font_name, font_size)
         if font_weight != "normal":
@@ -1581,15 +1516,15 @@ class FloatingLogViewer(tk.Tk):
             
         # 根据换行设置决定 wrap 模式
         auto_wrap = self.config.get("auto_wrap", False)
-        wrap_mode = tk.WORD if auto_wrap else tk.NONE  # 新增
+        wrap_mode = tk.WORD if auto_wrap else tk.NONE
         
-        # 更新文本组件背景
+        # 更新文本组件背景和字体
         self.text.config(
             bg=bg_color,
-            fg=self.normal_color,  # 确保使用更新后的颜色
+            fg=self.normal_color,
             font=font_config,
             height=self.display_lines,
-            wrap=wrap_mode  # 新增：更新换行模式
+            wrap=wrap_mode
         )
         
         # 更新窗口尺寸 - 使用max_width和max_height
@@ -1597,21 +1532,20 @@ class FloatingLogViewer(tk.Tk):
         current_y = self.winfo_y()
         self.geometry(f"{self.max_width}x{self.max_height}+{current_x}+{current_y}")
         
-        # 重要：重新創建 SmartLogReader 以應用新的 display_lines 和 skip_debug_log
-        # 使用初始的日志配置，不重新加载log_path和log_filename_prefix
+        # 重要：重新創建 SmartLogReader 以應用新的配置
         initial_log_config = self.config.get_initial_log_config()
         log_dir = initial_log_config["log_path"]
         log_filename_prefix = initial_log_config["log_filename_prefix"]
         log_path_configured = initial_log_config["log_path_configured"]
         skip_debug_log = self.config.get("skip_debug_log", False)
-        auto_wrap = self.config.get("auto_wrap", False)  # 新增
+        auto_wrap = self.config.get("auto_wrap", False)
         dynamic_height = self.config.get("dynamic_height", False)
         
         # 准备字体配置
         font_config_dict = {
-            "font_name": self.config.get("font_name", "Consolas"),
-            "font_size": self.config.get("font_size", 11),
-            "font_weight": self.config.get("font_weight", "bold")
+            "font_name": font_name,
+            "font_size": font_size,
+            "font_weight": font_weight
         }
         
         # 重新創建 reader 以應用新的配置
@@ -1622,20 +1556,26 @@ class FloatingLogViewer(tk.Tk):
             self.display_lines, 
             skip_debug_log,
             dynamic_height,
-            auto_wrap,           # 新增
-            self.max_width,      # 新增
-            font_config_dict     # 新增
+            auto_wrap,
+            self.max_width,
+            font_config_dict
         )
         
         # 強制刷新顯示
         self._update_display()
+        
+        # 确保窗口完全刷新
+        self.update_idletasks()
+        self.update()
+        
+        
 
     def _on_reset_position_shortcut(self, event=None):
         """Alt+U 快捷键处理函数 - 重置窗口位置到预设位置"""
         logging.info(f"检测到 Alt+U 快捷键，重置窗口位置到预设位置: ({self.preset_x}, {self.preset_y})")
         self.geometry(f"+{self.preset_x}+{self.preset_y}")
         # 立即保存重置后的位置到config.txt
-        self.config.save_window_state(self.preset_x, self.preset_y, self.transparent_mode, self.click_through, self.author_style_active)
+        self.config.save_window_state(self.preset_x, self.preset_y, self.transparent_mode, self.click_through, self.author_style2_active)
 
     def _on_close_shortcut(self, event=None):
         """Alt+P 快捷键处理函数"""
@@ -1666,6 +1606,23 @@ class FloatingLogViewer(tk.Tk):
 
         update_loop()
 
+    # 只比较日志内容，不包括状态行
+    def _force_immediate_display_update(self):
+        """强制立即更新显示，不依赖日志内容变化"""
+        # 设置强制更新标志
+        self._force_update = True
+        
+        # 清除之前的内容缓存，确保强制更新
+        self._prev_content = []
+        self.last_change_time = datetime.now()
+        
+        # 强制调用更新显示
+        self._update_display()
+        
+        # 确保窗口完全刷新
+        self.update_idletasks()
+        self.update()
+        
     # 只比较日志内容，不包括状态行
     def _get_content_hash(self, content):
         """获取内容的哈希值用于比较变化"""
@@ -1746,8 +1703,8 @@ class FloatingLogViewer(tk.Tk):
                 
             color_changed = self.text.cget("fg") != text_color
 
-            # 如果内容和颜色都未变化，跳过更新
-            if not content_changed and not color_changed:
+            # 如果内容和颜色都未变化，跳过更新（除非是强制更新）
+            if not content_changed and not color_changed and not hasattr(self, '_force_update'):
                 return
 
         # 动态调整窗口宽度
@@ -1770,14 +1727,18 @@ class FloatingLogViewer(tk.Tk):
             status_color = self.config.get("status_header_color", "#87CEFA")
             task_color = self.config.get("task_header_color", "#87CEFA")
             
-            # 获取当前字体配置
+            # 获取当前字体配置 - 从当前配置中获取最新值
             font_name = self.config.get("font_name", "Consolas")
             font_size = self.config.get("font_size", 10)
             font_weight = self.config.get("font_weight", "bold")
             
-            # 配置字体样式
-            status_font_config = (font_name, font_size, 'bold')
-            task_font_config = (font_name, font_size, 'bold')
+            # 配置字体样式 - 使用从配置中获取的最新值
+            status_font_config = (font_name, font_size, font_weight)
+            task_font_config = (font_name, font_size, font_weight)
+            # 删除现有标签（确保样式切换时标签被清除）
+            self.text.tag_delete("config_header")
+            self.text.tag_delete("task_header")
+            self.text.tag_delete("high_freq_warning")
             
             # 配置组行特殊样式 - 使用当前配置的状态行颜色和字体
             config_line = 1 if status_lines == 2 else 2
@@ -1799,7 +1760,7 @@ class FloatingLogViewer(tk.Tk):
             if self.reader.high_frequency_warning:
                 self.text.tag_configure("high_freq_warning", 
                                     foreground=self.high_freq_color,
-                                    font=(font_name, font_size, 'bold'))
+                                    font=(font_name, font_size, font_weight))
                 self.text.tag_add("high_freq_warning", "1.0", "1.end")
 
         # 重新禁用编辑
@@ -1809,6 +1770,11 @@ class FloatingLogViewer(tk.Tk):
         if content_changed:
             self.last_change_time = current_time
             self._prev_content = display_content
+            
+        # 清除强制更新标志
+        if hasattr(self, '_force_update'):
+            delattr(self, '_force_update')
+            
             
         # 动态调整窗口高度
         if self.dynamic_height:
@@ -1933,8 +1899,8 @@ class FloatingLogViewer(tk.Tk):
         # 使用当前窗口位置
         current_x = self.winfo_x()
         current_y = self.winfo_y()
-        self.config.save_window_state(current_x, current_y, self.transparent_mode, self.click_through, self.author_style_active)
-        logging.info(f"程序关闭，保存窗口位置到config.txt: ({current_x}, {current_y}), 透明模式: {self.transparent_mode}, 不可选中模式: {self.click_through}, 仿BGI日志窗口样式: {self.author_style_active}")
+        self.config.save_window_state(current_x, current_y, self.transparent_mode, self.click_through, self.author_style2_active)
+        logging.info(f"程序关闭，保存窗口位置到config.txt: ({current_x}, {current_y}), 透明模式: {self.transparent_mode}, 不可选中模式: {self.click_through}, 仿BGI日志窗口样式: {self.author_style2_active}")
         
         self.monitor_running = False
         super().destroy()
