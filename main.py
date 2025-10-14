@@ -1,3 +1,4 @@
+# 1.3.2
 __author__ = "蜜柑魚"
 
 import ctypes
@@ -545,6 +546,8 @@ class SmartLogReader:
             "任务开始进度": re.compile(r'\[(\d+)/(\d+)\][^"]*"([^"]+)":\s*开始执行'),
             "当前进度": re.compile(r'当前进度：\s*(\d+)/(\d+)\s*\([^)]+\)'),
             "组任务进度": re.compile(r'开始处理第\s*(\d+)\s*组第\s*(\d+)/(\d+)\s*个([^\.]+\.json)'),
+            "产出进度": re.compile(r'当前产出"（预计）"：*(\d+/\d+)'),
+            "运行时间进度": re.compile(r'当前运行时间："([\d.]+)"/(\d+)分钟')
         }
 
         self._update_log_file()  # 初始化日志文件
@@ -822,6 +825,30 @@ class SmartLogReader:
                     elif progress_type == "组任务进度" and len(groups) >= 4:
                         group_num, current, total, task_name = groups[:4]
                         return f"{current}/{total}"
+                    # 新增：产出进度格式
+                    elif progress_type == "产出进度" and len(groups) >= 1:
+                        progress_str = groups[0]
+                        return f"{progress_str}个"  # 添加單位
+                    # 新增：运行时间进度格式
+                    elif progress_type == "运行时间进度" and len(groups) >= 2:
+                        current_time, total_time = groups[:2]
+                        # 將小數分鐘轉換為分鐘:秒格式（秒數四捨五入）
+                        try:
+                            current_minutes = float(current_time)
+                            minutes = int(current_minutes)
+                            seconds = round((current_minutes - minutes) * 60)  # 四捨五入到整數秒
+                            
+                            # 處理四捨五入後可能出現60秒的情況
+                            if seconds == 60:
+                                minutes += 1
+                                seconds = 0
+                                
+                            # 格式化為 分鐘.秒 (秒數顯示兩位數)
+                            formatted_time = f"{minutes}.{seconds:02d}"
+                            return f"{formatted_time}/{total_time}分钟"
+                        except (ValueError, TypeError):
+                            # 如果轉換失敗，返回原始格式
+                            return f"{current_time}/{total_time}分钟"
                 except (ValueError, IndexError) as e:
                     logging.warning(f"进度信息解析失败: {line}, 错误: {e}")
         return None
@@ -832,7 +859,7 @@ class SmartLogReader:
         if not self.log_path_valid:
             return ["⚠️ 日志路径配置错误 ⚠️", "", "无法找到有效的日志文件，请：", 
                     "1. 打开 config.txt 文件", "2. 找到 log_path 配置项", 
-                    "3. 取消注释并设置正确的路径", "4. 保存配置文件后重启程序", "",
+                    "3. 取消注释 '#'號 并设置正确的路径", "4. 保存配置文件后重启程序", "",
                     "详细说明请查看 README.md", "", "按 Alt+P 关闭程序"]
         
         # 检查日期变更和文件更新
